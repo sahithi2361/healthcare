@@ -20,8 +20,9 @@ import {
   UserCheck,
   Languages,
 } from "lucide-react";
-import { Language, UserProfile, ChatMessage, CarePathwayStep } from "../types";
+import { Language, UserProfile, ChatMessage, CarePathwayStep, Doctor } from "../types";
 import { speakText, stopSpeaking, createSpeechRecognizer } from "../utils/speech";
+import { INITIAL_DOCTORS } from "../data/initialData";
 
 interface VoiceAssistantProps {
   language: Language;
@@ -30,6 +31,7 @@ interface VoiceAssistantProps {
   isOffline: boolean;
   onTriggerEmergency: () => void;
   onNavigateTab?: (tab: string) => void;
+  onSelectDoctor?: (doctor: Doctor) => void;
   initialQuery?: string;
 }
 
@@ -40,6 +42,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   isOffline,
   onTriggerEmergency,
   onNavigateTab,
+  onSelectDoctor,
   initialQuery,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -519,11 +522,25 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                     )}
                     {onNavigateTab && (
                       <button
-                        onClick={() => onNavigateTab("appointments")}
+                        onClick={() => {
+                          if (onSelectDoctor && INITIAL_DOCTORS.length > 0) {
+                            onSelectDoctor(INITIAL_DOCTORS[0]);
+                          }
+                          onNavigateTab("appointments");
+                        }}
                         className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
                       >
                         <Calendar className="w-3.5 h-3.5 text-blue-600" />
                         <span>Request Doctor Appointment</span>
+                      </button>
+                    )}
+                    {onNavigateTab && (
+                      <button
+                        onClick={() => onNavigateTab("doctor")}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Browse Verified Doctors</span>
                       </button>
                     )}
                   </div>

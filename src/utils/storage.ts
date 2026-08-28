@@ -10,6 +10,7 @@ import {
   CommunityHealthRegion,
   NotificationItem,
   MedicationLog,
+  AuthAccount,
 } from "../types";
 import {
   INITIAL_USER_PROFILE,
@@ -22,6 +23,7 @@ import {
   INITIAL_HEALTH_ACCESS_SCORE,
   INITIAL_COMMUNITY_REGIONS,
   INITIAL_NOTIFICATIONS,
+  PRESET_ACCOUNTS,
 } from "../data/initialData";
 
 const STORAGE_KEYS = {
@@ -38,6 +40,9 @@ const STORAGE_KEYS = {
   NOTIFICATIONS: "sehat_saathi_notifications_v1",
   OFFLINE_SIMULATION: "sehat_saathi_offline_sim_v1",
   LAST_SYNC: "sehat_saathi_last_sync_v1",
+  CURRENT_ACCOUNT: "sehat_saathi_account_v1",
+  ALL_ACCOUNTS: "sehat_saathi_all_accounts_v1",
+  IS_LOGGED_IN: "sehat_saathi_is_logged_in_v1",
 };
 
 export const StorageManager = {
@@ -286,5 +291,62 @@ export const StorageManager = {
   },
   touchSync: () => {
     localStorage.setItem(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
+  },
+
+  // Auth Accounts
+  getAccount: (): AuthAccount => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.CURRENT_ACCOUNT);
+      return raw ? JSON.parse(raw) : PRESET_ACCOUNTS[0];
+    } catch {
+      return PRESET_ACCOUNTS[0];
+    }
+  },
+  saveAccount: (account: AuthAccount) => {
+    localStorage.setItem(STORAGE_KEYS.CURRENT_ACCOUNT, JSON.stringify(account));
+  },
+  getAllAccounts: (): AuthAccount[] => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.ALL_ACCOUNTS);
+      return raw ? JSON.parse(raw) : PRESET_ACCOUNTS;
+    } catch {
+      return PRESET_ACCOUNTS;
+    }
+  },
+  saveAllAccounts: (accounts: AuthAccount[]) => {
+    localStorage.setItem(STORAGE_KEYS.ALL_ACCOUNTS, JSON.stringify(accounts));
+  },
+  registerOrUpdateAccount: (acc: AuthAccount) => {
+    const all = StorageManager.getAllAccounts();
+    const idx = all.findIndex((a) => a.id === acc.id || a.email === acc.email || a.phone === acc.phone);
+    if (idx >= 0) {
+      all[idx] = { ...all[idx], ...acc };
+    } else {
+      all.push(acc);
+    }
+    StorageManager.saveAllAccounts(all);
+    StorageManager.saveAccount(acc);
+    return acc;
+  },
+  isAuthenticated: (): boolean => {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.IS_LOGGED_IN) === "true";
+    } catch {
+      return false;
+    }
+  },
+  setAuthenticated: (status: boolean) => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.IS_LOGGED_IN, status ? "true" : "false");
+    } catch {
+      // ignore
+    }
+  },
+  logout: () => {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.IS_LOGGED_IN);
+    } catch {
+      // ignore
+    }
   },
 };

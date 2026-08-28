@@ -10,6 +10,7 @@ import {
   Phone,
   MapPin,
   AlertTriangle,
+  LogOut,
 } from "lucide-react";
 import { UserProfile, Language } from "../types";
 import { StorageManager } from "../utils/storage";
@@ -21,6 +22,7 @@ interface ProfileModalProps {
   onUpdateProfile: (profile: UserProfile) => void;
   onResetAllData: () => void;
   language: Language;
+  onLogout?: () => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -30,6 +32,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onUpdateProfile,
   onResetAllData,
   language,
+  onLogout,
 }) => {
   const [name, setName] = useState(userProfile.name);
   const [age, setAge] = useState(userProfile.age);
@@ -165,21 +168,38 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             />
           </div>
 
-          {/* Reset Demo Data */}
+          {/* Reset Demo Data & Logout */}
           <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm("Reset all medications, appointments, and records to initial demo state?")) {
-                  onResetAllData();
-                  onClose();
-                }
-              }}
-              className="text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 cursor-pointer text-xs"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset Demo State</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Reset all medications, appointments, and records to initial demo state?")) {
+                    onResetAllData();
+                    onClose();
+                  }
+                }}
+                className="text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 cursor-pointer text-xs"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset State</span>
+              </button>
+
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onLogout();
+                  }}
+                  className="text-slate-600 hover:text-red-600 font-bold flex items-center gap-1 cursor-pointer text-xs"
+                  title="Sign out and return to Login screen"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Log Out</span>
+                </button>
+              )}
+            </div>
 
             <div className="flex items-center gap-2">
               <button

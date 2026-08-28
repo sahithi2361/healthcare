@@ -1,20 +1,14 @@
 import React from "react";
 import {
   Mic,
-  Building2,
   Pill,
   Calendar,
-  FileText,
-  AlertTriangle,
-  Stethoscope,
-  Heart,
-  ChevronRight,
-  Sparkles,
-  PhoneCall,
-  Clock,
   CheckCircle2,
   MapPin,
-  Flame,
+  Stethoscope,
+  FolderLock,
+  Users,
+  Building2,
   ArrowRight,
 } from "lucide-react";
 import {
@@ -32,7 +26,7 @@ interface HomeOverviewProps {
   medications: Medication[];
   appointments: Appointment[];
   facilities: HealthcareFacility[];
-  accessScore: HealthAccessScoreData;
+  accessScore?: HealthAccessScoreData;
   language: Language;
   onNavigate: (tab: string) => void;
   onOpenEmergency: () => void;
@@ -44,7 +38,6 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
   medications,
   appointments,
   facilities,
-  accessScore,
   language,
   onNavigate,
   onOpenEmergency,
@@ -54,112 +47,91 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
 
   const nextAppointment = appointments.find((a) => a.status === "Scheduled") || appointments[0];
   const untakenMedication = medications.find((m) => !m.isTakenToday);
-  const nearestFacility = facilities[0];
 
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-8 animate-in fade-in duration-200">
-      {/* Header Greeting & Health Access Score Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm">
-        <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-0.5 rounded-full uppercase tracking-wider">
-              {userProfile.location}
-            </span>
-            <span className="text-xs text-slate-400 font-medium">
-              ABHA: {userProfile.abhaId || "91-4820-9921-3412"}
-            </span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-slate-800">
+    <div className="max-w-6xl mx-auto p-4 sm:p-8 space-y-6 animate-in fade-in duration-200">
+      {/* Clean Header Greeting */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/90 shadow-2xs">
+        <div className="space-y-1">
+          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full inline-block">
+            {userProfile.location || "Telangana"}
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
             {language === "te"
               ? `నమస్కారం, ${userProfile.name}`
               : language === "hi"
               ? `नमस्ते, ${userProfile.name}`
               : `Namaste, ${userProfile.name}`}
           </h2>
-          <p className="text-slate-500 text-sm sm:text-base mt-1">
-            "From confusion to the right care."
+          <p className="text-slate-500 text-sm">
+            {language === "te"
+              ? "మీ ఆరోగ్య సమాచారం మరియు నిపుణుల మార్గదర్శకత్వం"
+              : language === "hi"
+              ? "आपकी स्वास्थ्य जानकारी और सही देखभाल"
+              : "Your rural healthcare guide and care companion"}
           </p>
         </div>
 
-        <div className="flex items-center gap-6 self-start md:self-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
-          <div className="text-left md:text-right">
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Health Access Score
-            </div>
-            <div className="text-3xl sm:text-4xl font-black text-blue-600">
-              {accessScore.overallScore}
-              <span className="text-lg font-medium text-slate-400">/100</span>
-            </div>
-          </div>
-          <button
-            onClick={() => onNavigate("assistant")}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-2xl font-bold text-sm shadow-md shadow-blue-600/20 flex items-center gap-2.5 transition-all active:scale-95 cursor-pointer shrink-0"
-          >
-            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-              <Mic className="w-3.5 h-3.5" />
-            </div>
-            <span>{t("askVoice")}</span>
-          </button>
-        </div>
+        <button
+          onClick={() => onNavigate("assistant")}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-2xl font-bold text-sm shadow-2xs flex items-center gap-2 transition-all active:scale-95 cursor-pointer shrink-0 self-start sm:self-auto"
+        >
+          <Mic className="w-4 h-4" />
+          <span>{t("askVoice")}</span>
+        </button>
       </div>
 
-      {/* Quick Action Grid (3 Cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6">
+      {/* Quick 3 Hero Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div
           onClick={() => onNavigate("healthcare")}
-          className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md cursor-pointer flex flex-col items-center text-center space-y-4 transition-all group"
+          className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-blue-300 cursor-pointer flex items-center gap-4 transition-all group"
         >
-          <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
+          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+            <Building2 className="w-6 h-6" />
           </div>
           <div>
-            <span className="font-bold text-slate-800 text-lg block">Find Hospitals</span>
-            <span className="text-xs text-slate-500 mt-0.5 block">PHC, CHC & Jan Aushadhi</span>
+            <span className="font-bold text-slate-900 text-base block">Find Facilities</span>
+            <span className="text-xs text-slate-500 mt-0.5 block">PHC, CHC & Hospitals</span>
+          </div>
+        </div>
+
+        <div
+          onClick={() => onNavigate("doctors")}
+          className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-rose-300 cursor-pointer flex items-center gap-4 transition-all group"
+        >
+          <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+            <Stethoscope className="w-6 h-6" />
+          </div>
+          <div>
+            <span className="font-bold text-slate-900 text-base block">Consult Doctors</span>
+            <span className="text-xs text-slate-500 mt-0.5 block">Tele-OPD & Consultations</span>
           </div>
         </div>
 
         <div
           onClick={() => onNavigate("appointments")}
-          className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md cursor-pointer flex flex-col items-center text-center space-y-4 transition-all group"
+          className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-emerald-300 cursor-pointer flex items-center gap-4 transition-all group"
         >
-          <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+            <Calendar className="w-6 h-6" />
           </div>
           <div>
-            <span className="font-bold text-slate-800 text-lg block">Appointments</span>
-            <span className="text-xs text-slate-500 mt-0.5 block">Care Bundle & Checklists</span>
-          </div>
-        </div>
-
-        <div
-          onClick={() => onNavigate("passport")}
-          className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md cursor-pointer flex flex-col items-center text-center space-y-4 transition-all group"
-        >
-          <div className="w-16 h-16 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <div>
-            <span className="font-bold text-slate-800 text-lg block">Health Passport</span>
-            <span className="text-xs text-slate-500 mt-0.5 block">Offline QR & Token</span>
+            <span className="font-bold text-slate-900 text-base block">Appointments</span>
+            <span className="text-xs text-slate-500 mt-0.5 block">Scheduled Clinic Visits</span>
           </div>
         </div>
       </div>
 
-      {/* Today's Care Block */}
-      <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-sm space-y-4">
+      {/* Today's Schedule Card */}
+      <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-2xs space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-slate-800">Today's Care Plan</h3>
+            <h3 className="text-base font-bold text-slate-900">Today's Health Schedule</h3>
             <p className="text-xs text-slate-500">Essential scheduled medications & health visits</p>
           </div>
-          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase tracking-wider">
-            {untakenMedication ? "Action Pending" : "Up To Date"}
+          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
+            {untakenMedication ? "1 Action Pending" : "Up to Date"}
           </span>
         </div>
 
@@ -168,11 +140,11 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
           {untakenMedication ? (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-200/60 gap-3">
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-white rounded-xl shadow-xs flex items-center justify-center text-amber-500 mr-4 shrink-0 border border-slate-100">
-                  <Pill className="w-6 h-6" />
+                <div className="w-10 h-10 bg-white rounded-xl shadow-2xs flex items-center justify-center text-amber-500 mr-3.5 shrink-0 border border-slate-100">
+                  <Pill className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-slate-800 text-sm sm:text-base">
+                  <p className="font-bold text-slate-900 text-sm">
                     {untakenMedication.name} {untakenMedication.dosage}
                   </p>
                   <p className="text-xs text-slate-500">
@@ -182,16 +154,16 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
               </div>
               <button
                 onClick={() => onMarkMedTaken(untakenMedication)}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors cursor-pointer self-start sm:self-auto shrink-0 shadow-xs"
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-colors cursor-pointer self-start sm:self-auto shrink-0 shadow-2xs"
               >
-                MARK TAKEN
+                Mark Taken
               </button>
             </div>
           ) : (
-            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                <span className="text-sm font-semibold text-emerald-800">
+            <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs font-semibold text-emerald-800">
                   All daily medications taken for today!
                 </span>
               </div>
@@ -208,11 +180,11 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
           {nextAppointment && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-200/60 gap-3">
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-white rounded-xl shadow-xs flex items-center justify-center text-blue-600 mr-4 shrink-0 border border-slate-100">
-                  <Calendar className="w-6 h-6" />
+                <div className="w-10 h-10 bg-white rounded-xl shadow-2xs flex items-center justify-center text-blue-600 mr-3.5 shrink-0 border border-slate-100">
+                  <Calendar className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-slate-800 text-sm sm:text-base">
+                  <p className="font-bold text-slate-900 text-sm">
                     {nextAppointment.facilityName}
                   </p>
                   <p className="text-xs text-slate-500">
@@ -222,88 +194,88 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
               </div>
               <button
                 onClick={() => onNavigate("appointments")}
-                className="bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 text-xs font-bold px-4 py-2.5 rounded-xl transition-colors cursor-pointer self-start sm:self-auto shrink-0"
+                className="bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 text-xs font-bold px-3.5 py-2 rounded-xl transition-colors cursor-pointer self-start sm:self-auto shrink-0"
               >
-                VIEW PATHWAY
+                View Details
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* 6 Additional Navigation Tools */}
+      {/* Quick Services Grid */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-            Healthcare Services & Tools
+            All Health Tools
           </h3>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <button
             onClick={() => onNavigate("assistant")}
-            className="p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/80 text-center space-y-2 transition-all cursor-pointer shadow-xs active:scale-95 group"
+            className="p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/90 text-center space-y-1.5 transition-all cursor-pointer shadow-2xs group"
           >
-            <div className="w-10 h-10 mx-auto rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg group-hover:scale-105 transition-transform">
-              🎙️
+            <div className="w-9 h-9 mx-auto rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Mic className="w-4 h-4" />
             </div>
-            <div className="text-xs font-bold text-slate-800">Saathi Voice</div>
-            <div className="text-[10px] text-slate-400">Care Pathway</div>
+            <div className="text-xs font-bold text-slate-900">Saathi Voice</div>
+            <div className="text-[10px] text-slate-400">AI Triage</div>
           </button>
 
           <button
             onClick={() => onNavigate("healthcare")}
-            className="p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/80 text-center space-y-2 transition-all cursor-pointer shadow-xs active:scale-95 group"
+            className="p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/90 text-center space-y-1.5 transition-all cursor-pointer shadow-2xs group"
           >
-            <div className="w-10 h-10 mx-auto rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg group-hover:scale-105 transition-transform">
-              🏥
+            <div className="w-9 h-9 mx-auto rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <MapPin className="w-4 h-4" />
             </div>
-            <div className="text-xs font-bold text-slate-800">PHC & Clinics</div>
-            <div className="text-[10px] text-slate-400">Resource Finder</div>
+            <div className="text-xs font-bold text-slate-900">Facilities</div>
+            <div className="text-[10px] text-slate-400">Map & Beds</div>
+          </button>
+
+          <button
+            onClick={() => onNavigate("doctors")}
+            className="p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/90 text-center space-y-1.5 transition-all cursor-pointer shadow-2xs group"
+          >
+            <div className="w-9 h-9 mx-auto rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Stethoscope className="w-4 h-4" />
+            </div>
+            <div className="text-xs font-bold text-slate-900">Doctors</div>
+            <div className="text-[10px] text-slate-400">Tele-OPD</div>
           </button>
 
           <button
             onClick={() => onNavigate("medicines")}
-            className="p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/80 text-center space-y-2 transition-all cursor-pointer shadow-xs active:scale-95 group"
+            className="p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/90 text-center space-y-1.5 transition-all cursor-pointer shadow-2xs group"
           >
-            <div className="w-10 h-10 mx-auto rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg group-hover:scale-105 transition-transform">
-              💊
+            <div className="w-9 h-9 mx-auto rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Pill className="w-4 h-4" />
             </div>
-            <div className="text-xs font-bold text-slate-800">Medicines</div>
-            <div className="text-[10px] text-slate-400">Reminders & Streak</div>
+            <div className="text-xs font-bold text-slate-900">Medicines</div>
+            <div className="text-[10px] text-slate-400">Tracker</div>
           </button>
 
           <button
-            onClick={() => onNavigate("passport")}
-            className="p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/80 text-center space-y-2 transition-all cursor-pointer shadow-xs active:scale-95 group"
+            onClick={() => onNavigate("records")}
+            className="p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/90 text-center space-y-1.5 transition-all cursor-pointer shadow-2xs group"
           >
-            <div className="w-10 h-10 mx-auto rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-lg group-hover:scale-105 transition-transform">
-              🪪
+            <div className="w-9 h-9 mx-auto rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <FolderLock className="w-4 h-4" />
             </div>
-            <div className="text-xs font-bold text-slate-800">Health Passport</div>
-            <div className="text-[10px] text-slate-400">Doctor QR Code</div>
+            <div className="text-xs font-bold text-slate-900">Records</div>
+            <div className="text-[10px] text-slate-400">Health Locker</div>
           </button>
 
           <button
-            onClick={() => onNavigate("documents")}
-            className="p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/80 text-center space-y-2 transition-all cursor-pointer shadow-xs active:scale-95 group"
+            onClick={() => onNavigate("caregivers")}
+            className="p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/90 text-center space-y-1.5 transition-all cursor-pointer shadow-2xs group"
           >
-            <div className="w-10 h-10 mx-auto rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-lg group-hover:scale-105 transition-transform">
-              📁
+            <div className="w-9 h-9 mx-auto rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Users className="w-4 h-4" />
             </div>
-            <div className="text-xs font-bold text-slate-800">Documents</div>
-            <div className="text-[10px] text-slate-400">AI OCR Extractor</div>
-          </button>
-
-          <button
-            onClick={() => onNavigate("doctor")}
-            className="p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/80 text-center space-y-2 transition-all cursor-pointer shadow-xs active:scale-95 group"
-          >
-            <div className="w-10 h-10 mx-auto rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg group-hover:scale-105 transition-transform">
-              👨‍⚕️
-            </div>
-            <div className="text-xs font-bold text-slate-800">Doctor Handoff</div>
-            <div className="text-[10px] text-slate-400">Clinical Summary</div>
+            <div className="text-xs font-bold text-slate-900">Care Circle</div>
+            <div className="text-[10px] text-slate-400">Family Care</div>
           </button>
         </div>
       </div>

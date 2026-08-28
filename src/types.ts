@@ -1,5 +1,146 @@
 export type Language = "en" | "te" | "hi";
 
+export type UserRole = "user" | "doctor" | "hospital" | "asha";
+
+export interface AuthAccount {
+  id: string;
+  role: UserRole;
+  name: string;
+  email: string;
+  phone: string;
+  avatar?: string;
+  // User/Patient specifics
+  abhaId?: string;
+  bloodGroup?: string;
+  location?: string;
+  age?: number;
+  gender?: string;
+  // Doctor specifics
+  specialty?: string;
+  qualification?: string;
+  licenseNumber?: string;
+  facilityName?: string;
+  experienceYears?: number;
+  // Hospital specifics
+  facilityId?: string;
+  facilityType?: string;
+  registrationNumber?: string;
+  bedCapacity?: number;
+  // ASHA Worker specifics
+  ashaId?: string;
+  villageName?: string;
+  mandalName?: string;
+  assignedFamiliesCount?: number;
+}
+
+export interface Doctor {
+  id: string;
+  name: string;
+  nameTe?: string;
+  nameHi?: string;
+  specialty: string;
+  specialtyTe?: string;
+  specialtyHi?: string;
+  qualification: string;
+  experienceYears: number;
+  facilityName: string;
+  facilityId: string;
+  district: string;
+  state: string;
+  rating: number;
+  reviewCount: number;
+  languages: string[];
+  opdTimings: string;
+  consultationFee: number; // 0 for free Govt PHC/District Hospital
+  isAvailableToday: boolean;
+  isTelemedicineAvailable: boolean;
+  phone: string;
+  avatarUrl?: string;
+  bio?: string;
+  matchSymptoms?: string[];
+}
+
+export interface HospitalBedData {
+  generalTotal: number;
+  generalOccupied: number;
+  icuTotal: number;
+  icuOccupied: number;
+  oxygenTotal: number;
+  oxygenOccupied: number;
+  maternityTotal: number;
+  maternityOccupied: number;
+  lastUpdated: string;
+}
+
+export interface AmbulanceTelemetry {
+  id: string;
+  callSign: string;
+  vehicleNumber: string;
+  driverName: string;
+  driverPhone: string;
+  status: "available" | "dispatched" | "on_scene" | "transporting" | "maintenance";
+  currentLocation: string;
+  destinationFacility: string;
+  assignedEmergency?: string;
+  etaMinutes: number;
+  latitude: number;
+  longitude: number;
+  speedKmh: number;
+}
+
+export interface PharmacyStockItem {
+  id: string;
+  genericName: string;
+  brandNameEquivalent: string;
+  strength: string;
+  mrpJanAushadhi: number;
+  mrpBranded: number;
+  stockUnits: number;
+  minThreshold: number;
+  status: "in_stock" | "low_stock" | "out_of_stock";
+  category: string;
+}
+
+export interface DoctorPrescription {
+  id: string;
+  prescriptionNumber: string;
+  patientId: string;
+  patientName: string;
+  patientAge: number;
+  patientGender: string;
+  doctorName: string;
+  doctorSpecialty: string;
+  facilityName: string;
+  date: string;
+  diagnosis: string;
+  symptoms: string[];
+  medicines: {
+    name: string;
+    genericEquivalent: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    instructions: string;
+    janAushadhiAvailable: boolean;
+  }[];
+  advice: string;
+  followUpDate?: string;
+}
+
+export interface TeleconsultSession {
+  id: string;
+  patientName: string;
+  patientPhone: string;
+  patientAge: number;
+  patientLocation: string;
+  chiefComplaint: string;
+  urgency: "routine" | "priority" | "urgent";
+  scheduledTime: string;
+  status: "waiting" | "in_call" | "completed" | "cancelled";
+  tokenNumber: number;
+  clinicalSummary?: string;
+}
+
 export interface EmergencyContact {
   id?: string;
   name: string;
@@ -51,6 +192,7 @@ export interface ChatMessage {
   suggestedFacilityType?: string;
   simplifiedExplanation?: string;
   suggestedFollowUpQuestions?: string[];
+  recommendedDoctors?: Doctor[];
 }
 
 export type FacilityType =
