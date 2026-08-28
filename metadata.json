@@ -1,0 +1,6 @@
+{
+  "name": "Sehat Saathi AI",
+  "description": "Offline-first, voice-first, multilingual, non-diagnostic digital healthcare navigator for rural and remote communities.",
+  "requestFramePermissions": ["microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
