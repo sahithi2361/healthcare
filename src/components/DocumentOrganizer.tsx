@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { Language, HealthDocument, DocumentCategory } from "../types";
 import { StorageManager } from "../utils/storage";
+import { api } from "../lib/api";
+import { mapDbDocument } from "../utils/adapters";
 
 interface DocumentOrganizerProps {
   documents: HealthDocument[];
@@ -82,21 +84,35 @@ export const DocumentOrganizer: React.FC<DocumentOrganizerProps> = ({
         }
       }
 
-      const newDoc: HealthDocument = {
-        id: "doc_" + Date.now(),
+      // Save to PostgreSQL backend
+      const saved = await api.addDocument({
         title,
-        category,
+        type: category === "Lab Report" ? "lab-report" : category === "Vaccine Card" ? "vaccination" : "prescription",
         date: new Date().toISOString().split("T")[0],
-        doctorName: doctorName || extractedData?.doctorName || "Dr. Srinivas Rao, MBBS",
-        facilityName: facilityName || extractedData?.facilityName || "Bhoothpur Primary Health Centre",
-        extractedSummary:
+        doctorOrHospital: doctorName || facilityName || "Govt PHC Clinic",
+        summary:
           extractedData?.summary ||
           `Medical record filed for ${title}. Contains routine clinical guidance and dosage schedules.`,
-        detectedMedicines: extractedData?.detectedMedicines || [
-          { name: "Telmisartan", dosage: "40mg", frequency: "Once daily morning" },
-        ],
-        tags: [category, "Rural Healthcare", "Verified"],
-      };
+        tags: `${category},Rural Healthcare,Verified`,
+      }).catch(() => null);
+
+      const newDoc: HealthDocument = saved
+        ? mapDbDocument(saved)
+        : {
+            id: "doc_" + Date.now(),
+            title,
+            category,
+            date: new Date().toISOString().split("T")[0],
+            doctorName: doctorName || extractedData?.doctorName || "Dr. Srinivas Rao, MBBS",
+            facilityName: facilityName || extractedData?.facilityName || "Bhoothpur Primary Health Centre",
+            extractedSummary:
+              extractedData?.summary ||
+              `Medical record filed for ${title}. Contains routine clinical guidance and dosage schedules.`,
+            detectedMedicines: extractedData?.detectedMedicines || [
+              { name: "Telmisartan", dosage: "40mg", frequency: "Once daily morning" },
+            ],
+            tags: [category, "Rural Healthcare", "Verified"],
+          };
 
       StorageManager.addDocument(newDoc);
       onDocumentAdded(newDoc);

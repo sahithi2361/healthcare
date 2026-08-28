@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { Language, Caregiver, UserProfile } from "../types";
 import { StorageManager } from "../utils/storage";
+import { api } from "../lib/api";
+import { mapDbCaregiver } from "../utils/adapters";
 
 interface CareCircleProps {
   caregivers: Caregiver[];
@@ -60,27 +62,43 @@ export const CareCircle: React.FC<CareCircleProps> = ({
     }, 2500);
   };
 
-  const handleAddCaregiver = (e: React.FormEvent) => {
+  const handleAddCaregiver = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim()) return;
 
-    const newCaregiver: Caregiver = {
-      id: "cg_" + Date.now(),
-      name,
-      relationship,
-      phone,
-      isPrimary,
-      permissions: {
-        viewMedicines: true,
-        viewAppointments: true,
-        viewDocuments: false,
-        receiveMissedDoseAlerts: true,
-        receiveEmergencyLocation: true,
-      },
-    };
+    try {
+      const saved = await api.addCaregiver({
+        name,
+        relation: relationship,
+        phone,
+        isEmergencyContact: isPrimary,
+        accessLevel: "manage",
+      }).catch(() => null);
 
-    const updated = StorageManager.addCaregiver(newCaregiver);
-    onUpdateCaregivers(updated);
+      const newCaregiver: Caregiver = saved
+        ? mapDbCaregiver(saved)
+        : {
+            id: "cg_" + Date.now(),
+            name,
+            relationship,
+            phone,
+            isPrimary,
+            permissions: {
+              viewMedicines: true,
+              viewAppointments: true,
+              viewDocuments: false,
+              receiveMissedDoseAlerts: true,
+              receiveEmergencyLocation: true,
+            },
+          };
+
+      const updated = [newCaregiver, ...caregivers];
+      onUpdateCaregivers(updated);
+      StorageManager.saveCaregivers(updated);
+    } catch (err) {
+      console.warn("Save caregiver err:", err);
+    }
+
     setShowAddModal(false);
     resetForm();
   };

@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { Language, Appointment, HealthcareFacility } from "../types";
 import { StorageManager } from "../utils/storage";
+import { api } from "../lib/api";
+import { mapDbAppointment } from "../utils/adapters";
 
 interface AppointmentCenterProps {
   appointments: Appointment[];
@@ -64,33 +66,51 @@ export const AppointmentCenter: React.FC<AppointmentCenterProps> = ({
     if (curr) setSelectedApt(curr);
   };
 
-  const handleBookAppointment = (e: React.FormEvent) => {
+  const handleBookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const newApt: Appointment = {
-      id: "apt_" + Date.now(),
-      doctorName,
-      facilityName,
-      facilityId: facilities.find((f) => f.name === facilityName)?.id || "fac_phc_bhoothpur",
-      department,
-      date,
-      time,
-      status: "Scheduled",
-      reasonForVisit: reason,
-      preparationChecklist: {
-        items: [
-          { text: "Carry previous prescription & BP diary", completed: false },
-          { text: "Bring current medication strips", completed: false },
-          { text: "Fasting not required unless instructed", completed: false },
-          { text: "Carry Aadhaar / ABHA Card ID", completed: false },
-        ],
-        specialInstructions: "Arrive 15 minutes early at OP counter 2.",
-      },
-    };
+    try {
+      const saved = await api.addAppointment({
+        doctorName,
+        specialty: department,
+        facilityName,
+        date,
+        time,
+        type: "in-person",
+        symptoms: reason,
+      }).catch(() => null);
 
-    const updated = StorageManager.addAppointment(newApt);
-    onUpdateAppointments(updated);
-    setSelectedApt(newApt);
+      const newApt: Appointment = saved
+        ? mapDbAppointment(saved)
+        : {
+            id: "apt_" + Date.now(),
+            doctorName,
+            facilityName,
+            facilityId: facilities.find((f) => f.name === facilityName)?.id || "fac_phc_bhoothpur",
+            department,
+            date,
+            time,
+            status: "Scheduled",
+            reasonForVisit: reason,
+            preparationChecklist: {
+              items: [
+                { text: "Carry previous prescription & BP diary", completed: false },
+                { text: "Bring current medication strips", completed: false },
+                { text: "Fasting not required unless instructed", completed: false },
+                { text: "Carry Aadhaar / ABHA Card ID", completed: false },
+              ],
+              specialInstructions: "Arrive 15 minutes early at OP counter 2.",
+            },
+          };
+
+      const updated = [newApt, ...appointments];
+      onUpdateAppointments(updated);
+      StorageManager.saveAppointments(updated);
+      setSelectedApt(newApt);
+    } catch (err) {
+      console.warn("Appointment save err:", err);
+    }
+
     setShowBookModal(false);
   };
 

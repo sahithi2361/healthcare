@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Language, UserProfile, ChatMessage, CarePathwayStep, Doctor } from "../types";
 import { speakText, stopSpeaking, createSpeechRecognizer } from "../utils/speech";
-import { INITIAL_DOCTORS } from "../data/initialData";
+import { StorageManager } from "../utils/storage";
 
 interface VoiceAssistantProps {
   language: Language;
@@ -523,8 +523,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                     {onNavigateTab && (
                       <button
                         onClick={() => {
-                          if (onSelectDoctor && INITIAL_DOCTORS.length > 0) {
-                            onSelectDoctor(INITIAL_DOCTORS[0]);
+                          const liveDocs = StorageManager.getDoctors();
+                          if (onSelectDoctor && liveDocs.length > 0) {
+                            onSelectDoctor(liveDocs[0]);
                           }
                           onNavigateTab("appointments");
                         }}

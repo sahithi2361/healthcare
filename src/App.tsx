@@ -14,10 +14,17 @@ import {
   AuthAccount,
 } from "./types";
 import { StorageManager } from "./utils/storage";
-import { INITIAL_DOCTORS } from "./data/initialData";
+import { api } from "./lib/api";
+import {
+  mapDbMedication,
+  mapDbAppointment,
+  mapDbDocument,
+  mapDbCaregiver,
+  mapDbFacility,
+  mapDbDoctor,
+} from "./utils/adapters";
 import { Navbar } from "./components/Navbar";
 import { SidebarNavigation } from "./components/SidebarNavigation";
-import { AuthModal } from "./components/AuthModal";
 import { AuthLandingPage } from "./components/AuthLandingPage";
 import { EmergencyModal } from "./components/EmergencyModal";
 import { ProfileModal } from "./components/ProfileModal";
@@ -30,42 +37,47 @@ import { AppointmentCenter } from "./components/AppointmentCenter";
 import { HealthPassport } from "./components/HealthPassport";
 import { DocumentOrganizer } from "./components/DocumentOrganizer";
 import { CareCircle } from "./components/CareCircle";
-import { ProfessionalEscalation } from "./components/ProfessionalEscalation";
-import { HealthAccessScore } from "./components/HealthAccessScore";
-import { CommunityHealthMap } from "./components/CommunityHealthMap";
-import { HealthEducationHub } from "./components/HealthEducationHub";
 import { DoctorDirectory } from "./components/DoctorDirectory";
 import { DoctorPortalView } from "./components/DoctorPortalView";
 import { HospitalPortalView } from "./components/HospitalPortalView";
 import {
-  Sparkles,
   Home,
   Mic,
   Building2,
   Pill,
-  Calendar,
+  Video,
   FileText,
-  Users,
+  Clock,
+  BedDouble,
+  Ambulance,
   Stethoscope,
-  BarChart3,
-  Map as MapIcon,
-  BookOpen,
-  ShieldCheck,
-  HeartHandshake,
-  AlertTriangle,
 } from "lucide-react";
 
 export function App() {
   // App-level State
-  const [language, setLanguage] = useState<Language>("te"); // Default to Telugu for authentic rural showcase
+  const [language, setLanguage] = useState<Language>("te"); // Default to Telugu
   const [isSimpleMode, setIsSimpleMode] = useState<boolean>(false);
   const [isOffline, setIsOffline] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<string>("home");
 
   // Auth & Session State
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => StorageManager.isAuthenticated());
-  const [currentAccount, setCurrentAccount] = useState<AuthAccount>(StorageManager.getAccount());
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() =>
+    StorageManager.isAuthenticated()
+  );
+  const [currentAccount, setCurrentAccount] = useState<AuthAccount>(() =>
+    StorageManager.getAccount()
+  );
+
+  // Determine initial active tab based on account role
+  const getDefaultTabForRole = (role?: string) => {
+    if (role === "doctor") return "doctor-queue";
+    if (role === "hospital") return "hospital-beds";
+    return "home";
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(() =>
+    getDefaultTabForRole(StorageManager.getAccount()?.role)
+  );
+
   const [isSidebarMobileOpen, setIsSidebarMobileOpen] = useState<boolean>(false);
 
   // Modals State
@@ -83,14 +95,114 @@ export function App() {
   const [accessScore, setAccessScore] = useState<HealthAccessScoreData>(StorageManager.getAccessScore());
   const [communityRegions, setCommunityRegions] = useState<CommunityHealthRegion[]>(StorageManager.getCommunityRegions());
   const [articles, setArticles] = useState<HealthArticle[]>(StorageManager.getArticles());
-  const [doctors, setDoctors] = useState<Doctor[]>(INITIAL_DOCTORS);
+  const [doctors, setDoctors] = useState<Doctor[]>(StorageManager.getDoctors());
 
-  // Initialize storage once on mount
+  // Initialize storage and fetch dynamic PostgreSQL data on mount and auth change
   useEffect(() => {
     StorageManager.initialize();
     setIsOffline(StorageManager.isSimulatedOffline());
     reloadAllState();
-  }, []);
+    if (isAuthenticated) {
+      syncWithPostgres();
+    }
+  }, [isAuthenticated, currentAccount?.id]);
+
+  const syncWithPostgres = async () => {
+    try {
+      // 1. Fetch Profile & Health Score
+      const profileData = await api.getProfile().catch(() => null);
+      if (profileData?.profile) {
+        const p = profileData.profile;
+        const mappedProfile: UserProfile = {
+          id: String(p.id),
+          name: p.name,
+          age: 48,
+          gender: "Male",
+          phone: p.phone || "+91 98490 12345",
+          email: p.email,
+          preferredLanguage: (p.preferredLanguage as Language) || language,
+          location: `${p.village || "Kondapur"}, ${p.district || "Nizamabad"}`,
+          district: p.district || "Nizamabad",
+          state: "Telangana",
+          abhaId: p.abhaNumber || "91-4829-1029-4821",
+          emergencyContacts: [
+            {
+              name: p.emergencyContactName || "Laxmi Rao",
+              relationship: p.emergencyContactRelation || "Spouse",
+              phone: p.emergencyContactPhone || "+91 98490 54321",
+              isPrimary: true,
+            },
+          ],
+          bloodGroup: p.bloodGroup || "O+",
+          allergies: ["Penicillin (mild rash)"],
+          importantHealthNotes: "Hypertension & T2DM controlled on generic PMBJP medicines.",
+        };
+        setUserProfile(mappedProfile);
+        StorageManager.saveProfile(mappedProfile);
+      }
+
+      if (profileData?.score) {
+        const sc = profileData.score;
+        setAccessScore({
+          overallScore: sc.overallScore || 82,
+          proximityScore: sc.facilityProximity || 86,
+          pharmacyScore: sc.genericMedSavings || 94,
+          emergencyScore: sc.emergencyReadiness || 76,
+          connectivityScore: sc.vaccinationCoverage || 92,
+        });
+      }
+
+      // 2. Fetch Dynamic Medications
+      const medsData = await api.getMedications().catch(() => null);
+      if (Array.isArray(medsData) && medsData.length > 0) {
+        const mappedMeds = medsData.map(mapDbMedication);
+        setMedications(mappedMeds);
+        StorageManager.saveMedications(mappedMeds);
+      }
+
+      // 3. Fetch Dynamic Appointments
+      const apptsData = await api.getAppointments().catch(() => null);
+      if (Array.isArray(apptsData) && apptsData.length > 0) {
+        const mappedAppts = apptsData.map(mapDbAppointment);
+        setAppointments(mappedAppts);
+        StorageManager.saveAppointments(mappedAppts);
+      }
+
+      // 4. Fetch Dynamic Health Documents
+      const docsData = await api.getDocuments().catch(() => null);
+      if (Array.isArray(docsData) && docsData.length > 0) {
+        const mappedDocs = docsData.map(mapDbDocument);
+        setDocuments(mappedDocs);
+        StorageManager.saveDocuments(mappedDocs);
+      }
+
+      // 5. Fetch Dynamic Caregivers
+      const cgData = await api.getCaregivers().catch(() => null);
+      if (Array.isArray(cgData) && cgData.length > 0) {
+        const mappedCg = cgData.map(mapDbCaregiver);
+        setCaregivers(mappedCg);
+        StorageManager.saveCaregivers(mappedCg);
+      }
+
+      // 6. Fetch Live Hospital Facilities
+      const facData = await api.getFacilities().catch(() => null);
+      if (Array.isArray(facData) && facData.length > 0) {
+        const mappedFac = facData.map(mapDbFacility);
+        setFacilities(mappedFac);
+        StorageManager.saveFacilities(mappedFac);
+      }
+
+      // 7. Fetch Live Doctors
+      const docData = await api.getAllDoctors().catch(() => null);
+      if (Array.isArray(docData) && docData.length > 0) {
+        const mappedDocs = docData.map(mapDbDoctor);
+        setDoctors(mappedDocs);
+        StorageManager.saveDoctors(mappedDocs);
+      }
+    } catch (err) {
+      console.warn("PostgreSQL live sync note (using cached local fallback):", err);
+    }
+  };
 
   const reloadAllState = () => {
     setUserProfile(StorageManager.getProfile());
@@ -102,7 +214,9 @@ export function App() {
     setAccessScore(StorageManager.getAccessScore());
     setCommunityRegions(StorageManager.getCommunityRegions());
     setArticles(StorageManager.getArticles());
-    setCurrentAccount(StorageManager.getAccount());
+    setDoctors(StorageManager.getDoctors());
+    const acc = StorageManager.getAccount();
+    setCurrentAccount(acc);
   };
 
   const handleToggleOffline = () => {
@@ -122,13 +236,11 @@ export function App() {
     StorageManager.setAuthenticated(true);
     setIsAuthenticated(true);
 
-    // If logging in as doctor or hospital, switch to their respective workspace
+    // Switch to role-specific default view
     if (account.role === "doctor") {
-      setActiveTab("doctor-portal");
+      setActiveTab("doctor-queue");
     } else if (account.role === "hospital") {
-      setActiveTab("hospital-portal");
-    } else if (account.role === "asha") {
-      setActiveTab("community");
+      setActiveTab("hospital-beds");
     } else {
       setActiveTab("home");
     }
@@ -137,9 +249,10 @@ export function App() {
   const handleLogout = () => {
     StorageManager.logout();
     setIsAuthenticated(false);
+    setActiveTab("home");
   };
 
-  // If not authenticated, show the Login & Sign Up landing portal
+  // If not authenticated, show the Role-Isolated Login & Sign Up landing portal
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-900 selection:bg-blue-600 selection:text-white">
@@ -161,6 +274,8 @@ export function App() {
     );
   }
 
+  const userRole = currentAccount?.role || "user";
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex font-sans selection:bg-blue-100">
       {/* Left Collapsible & Mobile Drawer Sidebar */}
@@ -168,7 +283,7 @@ export function App() {
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         currentAccount={currentAccount}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenAuthModal={() => {}}
         language={language}
         onLanguageChange={setLanguage}
         isSimpleMode={isSimpleMode}
@@ -198,13 +313,44 @@ export function App() {
           onResetData={handleResetAllData}
           onOpenSidebar={() => setIsSidebarMobileOpen(true)}
           currentAccount={currentAccount}
-          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onOpenAuthModal={() => {}}
           onLogout={handleLogout}
         />
 
         {/* Main View Switching */}
         <main className="flex-1 pb-20 lg:pb-8">
-          {isSimpleMode ? (
+          {/* 1. DOCTOR WORKSPACE: Isolated to Doctors */}
+          {userRole === "doctor" ? (
+            <DoctorPortalView
+              currentAccount={currentAccount}
+              language={language}
+              initialTab={
+                activeTab === "doctor-rx"
+                  ? "rx"
+                  : activeTab === "doctor-history"
+                  ? "history"
+                  : "queue"
+              }
+              onTabChange={(tab) => setActiveTab(`doctor-${tab}`)}
+            />
+          ) : /* 2. HOSPITAL OPERATIONS: Isolated to Hospital Admin */
+          userRole === "hospital" ? (
+            <HospitalPortalView
+              currentAccount={currentAccount}
+              language={language}
+              initialTab={
+                activeTab === "hospital-triage"
+                  ? "triage"
+                  : activeTab === "hospital-pharmacy"
+                  ? "pharmacy"
+                  : activeTab === "hospital-staff"
+                  ? "staff"
+                  : "beds"
+              }
+              onTabChange={(tab) => setActiveTab(`hospital-${tab}`)}
+            />
+          ) : /* 3. PATIENT CARE: Isolated to Patients */
+          isSimpleMode ? (
             <SimpleModeView
               language={language}
               userProfile={userProfile}
@@ -272,7 +418,7 @@ export function App() {
                     setActiveTab("appointments");
                   }}
                   onStartTeleconsult={(doc) => {
-                    setActiveTab("doctor-portal");
+                    setActiveTab("appointments");
                   }}
                 />
               )}
@@ -316,20 +462,6 @@ export function App() {
                 />
               )}
 
-              {activeTab === "doctor-portal" && (
-                <DoctorPortalView
-                  currentAccount={currentAccount}
-                  language={language}
-                />
-              )}
-
-              {activeTab === "hospital-portal" && (
-                <HospitalPortalView
-                  currentAccount={currentAccount}
-                  language={language}
-                />
-              )}
-
               {activeTab === "caregivers" && (
                 <CareCircle
                   caregivers={caregivers}
@@ -339,181 +471,182 @@ export function App() {
                 />
               )}
 
-              {(activeTab === "score" || activeTab === "access_score") && (
-                <HealthAccessScore scoreData={accessScore} language={language} />
-              )}
-
-              {(activeTab === "community" || activeTab === "community_map") && (
-                <CommunityHealthMap regions={communityRegions} language={language} />
-              )}
-
-              {activeTab === "education" && (
-                <HealthEducationHub articles={articles} language={language} />
-              )}
-
-              {activeTab === "more" && (
-                <div className="max-w-6xl mx-auto p-4 sm:p-8 space-y-6">
-                  <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-800 tracking-tight">
-                        Rural Healthcare & Clinical Ecosystem
-                      </h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-                        Access specialized portals, care circle management, ASHA worker tools, and health scoring
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      <button
-                        onClick={() => setActiveTab("doctor-portal")}
-                        className="p-5 rounded-2xl border border-slate-200/80 hover:border-emerald-400 bg-emerald-50/40 hover:bg-emerald-50 text-left transition-all cursor-pointer group shadow-2xs"
-                      >
-                        <div className="text-2xl mb-2.5">🩺</div>
-                        <div className="font-bold text-slate-800 text-sm group-hover:text-emerald-700 transition-colors">
-                          Doctor Workspace & Tele-OPD
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1 font-medium">
-                          Video consult queue & digital e-Prescriptions (Rx)
-                        </p>
-                      </button>
-
-                      <button
-                        onClick={() => setActiveTab("hospital-portal")}
-                        className="p-5 rounded-2xl border border-slate-200/80 hover:border-purple-400 bg-purple-50/40 hover:bg-purple-50 text-left transition-all cursor-pointer group shadow-2xs"
-                      >
-                        <div className="text-2xl mb-2.5">🏢</div>
-                        <div className="font-bold text-slate-800 text-sm group-hover:text-purple-700 transition-colors">
-                          Hospital & CHC Operations
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1 font-medium">
-                          Real-time ICU/Oxygen beds & 108 Ambulance GPS
-                        </p>
-                      </button>
-
-                      <button
-                        onClick={() => setActiveTab("caregivers")}
-                        className="p-5 rounded-2xl border border-slate-200/80 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/50 text-left transition-all cursor-pointer group shadow-2xs"
-                      >
-                        <div className="text-2xl mb-2.5">👨‍👩‍👧</div>
-                        <div className="font-bold text-slate-800 text-sm group-hover:text-blue-600 transition-colors">
-                          Family & Caregiver Circle
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1 font-medium">
-                          Manage emergency SMS alerts & family access
-                        </p>
-                      </button>
-
-                      <button
-                        onClick={() => setActiveTab("score")}
-                        className="p-5 rounded-2xl border border-slate-200/80 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/50 text-left transition-all cursor-pointer group shadow-2xs"
-                      >
-                        <div className="text-2xl mb-2.5">📊</div>
-                        <div className="font-bold text-slate-800 text-sm group-hover:text-blue-600 transition-colors">
-                          Rural Health Access Score
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1 font-medium">
-                          Equity index, road proximity & resource index
-                        </p>
-                      </button>
-
-                      <button
-                        onClick={() => setActiveTab("community")}
-                        className="p-5 rounded-2xl border border-slate-200/80 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/50 text-left transition-all cursor-pointer group shadow-2xs"
-                      >
-                        <div className="text-2xl mb-2.5">🗺️</div>
-                        <div className="font-bold text-slate-800 text-sm group-hover:text-blue-600 transition-colors">
-                          Community Health Map & ASHA
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1 font-medium">
-                          Village indices, ambulance ETAs & clinic tiers
-                        </p>
-                      </button>
-
-                      <button
-                        onClick={() => setActiveTab("education")}
-                        className="p-5 rounded-2xl border border-slate-200/80 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/50 text-left transition-all cursor-pointer group shadow-2xs"
-                      >
-                        <div className="text-2xl mb-2.5">📚</div>
-                        <div className="font-bold text-slate-800 text-sm group-hover:text-blue-600 transition-colors">
-                          Health Education Hub
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1 font-medium">
-                          12 rural wellness guides with Telugu & Hindi audio
-                        </p>
-                      </button>
-                    </div>
-                  </div>
-                </div>
+              {/* Fallback to home for unrecognized tabs in patient view */}
+              {!["home", "assistant", "healthcare", "doctors", "doctor", "medicines", "appointments", "passport", "records", "documents", "caregivers"].includes(activeTab) && (
+                <HomeOverview
+                  userProfile={userProfile}
+                  medications={medications}
+                  appointments={appointments}
+                  facilities={facilities}
+                  accessScore={accessScore}
+                  language={language}
+                  onNavigate={setActiveTab}
+                  onOpenEmergency={() => setIsEmergencyOpen(true)}
+                  onMarkMedTaken={(med) => {
+                    const updated = medications.map((m) =>
+                      m.id === med.id ? { ...m, isTakenToday: true } : m
+                    );
+                    setMedications(updated);
+                    StorageManager.saveMedications(updated);
+                  }}
+                />
               )}
             </>
           )}
         </main>
 
-        {/* Mobile Bottom Navigation Bar */}
+        {/* Role-Specific Mobile Bottom Navigation Bar */}
         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-2 py-2 flex items-center justify-around text-[10px] font-bold text-slate-500 shadow-sm">
-          <button
-            onClick={() => {
-              setActiveTab("home");
-              setIsSimpleMode(false);
-            }}
-            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
-              activeTab === "home" && !isSimpleMode
-                ? "text-blue-600 bg-blue-50/80 font-bold"
-                : "hover:text-slate-700"
-            }`}
-          >
-            <Home className="w-4 h-4" />
-            <span>Home</span>
-          </button>
+          {userRole === "doctor" ? (
+            <>
+              <button
+                onClick={() => setActiveTab("doctor-queue")}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
+                  activeTab === "doctor-queue"
+                    ? "text-emerald-600 bg-emerald-50/80 font-bold"
+                    : "hover:text-slate-700"
+                }`}
+              >
+                <Video className="w-4 h-4" />
+                <span>OPD Queue</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("doctor-rx")}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
+                  activeTab === "doctor-rx"
+                    ? "text-emerald-600 bg-emerald-50/80 font-bold"
+                    : "hover:text-slate-700"
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                <span>Rx Writer</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("doctor-history")}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
+                  activeTab === "doctor-history"
+                    ? "text-emerald-600 bg-emerald-50/80 font-bold"
+                    : "hover:text-slate-700"
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                <span>History</span>
+              </button>
+            </>
+          ) : userRole === "hospital" ? (
+            <>
+              <button
+                onClick={() => setActiveTab("hospital-beds")}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
+                  activeTab === "hospital-beds"
+                    ? "text-purple-600 bg-purple-50/80 font-bold"
+                    : "hover:text-slate-700"
+                }`}
+              >
+                <BedDouble className="w-4 h-4" />
+                <span>Beds</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("hospital-triage")}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
+                  activeTab === "hospital-triage"
+                    ? "text-purple-600 bg-purple-50/80 font-bold"
+                    : "hover:text-slate-700"
+                }`}
+              >
+                <Ambulance className="w-4 h-4" />
+                <span>108 Fleet</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("hospital-pharmacy")}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
+                  activeTab === "hospital-pharmacy"
+                    ? "text-purple-600 bg-purple-50/80 font-bold"
+                    : "hover:text-slate-700"
+                }`}
+              >
+                <Pill className="w-4 h-4" />
+                <span>Jan Aushadhi</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("hospital-staff")}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
+                  activeTab === "hospital-staff"
+                    ? "text-purple-600 bg-purple-50/80 font-bold"
+                    : "hover:text-slate-700"
+                }`}
+              >
+                <Stethoscope className="w-4 h-4" />
+                <span>Staff</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setActiveTab("home");
+                  setIsSimpleMode(false);
+                }}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
+                  activeTab === "home" && !isSimpleMode
+                    ? "text-blue-600 bg-blue-50/80 font-bold"
+                    : "hover:text-slate-700"
+                }`}
+              >
+                <Home className="w-4 h-4" />
+                <span>Home</span>
+              </button>
 
-          <button
-            onClick={() => {
-              setActiveTab("assistant");
-              setIsSimpleMode(false);
-            }}
-            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
-              activeTab === "assistant" && !isSimpleMode
-                ? "text-blue-600 bg-blue-50/80 font-bold"
-                : "hover:text-slate-700"
-            }`}
-          >
-            <Mic className="w-4 h-4" />
-            <span>Voice</span>
-          </button>
+              <button
+                onClick={() => {
+                  setActiveTab("assistant");
+                  setIsSimpleMode(false);
+                }}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
+                  activeTab === "assistant" && !isSimpleMode
+                    ? "text-blue-600 bg-blue-50/80 font-bold"
+                    : "hover:text-slate-700"
+                }`}
+              >
+                <Mic className="w-4 h-4" />
+                <span>Voice</span>
+              </button>
 
-          <button
-            onClick={() => {
-              setActiveTab("healthcare");
-              setIsSimpleMode(false);
-            }}
-            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
-              activeTab === "healthcare" && !isSimpleMode
-                ? "text-blue-600 bg-blue-50/80 font-bold"
-                : "hover:text-slate-700"
-            }`}
-          >
-            <Building2 className="w-4 h-4" />
-            <span>Clinics</span>
-          </button>
+              <button
+                onClick={() => {
+                  setActiveTab("healthcare");
+                  setIsSimpleMode(false);
+                }}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
+                  activeTab === "healthcare" && !isSimpleMode
+                    ? "text-blue-600 bg-blue-50/80 font-bold"
+                    : "hover:text-slate-700"
+                }`}
+              >
+                <Building2 className="w-4 h-4" />
+                <span>Clinics</span>
+              </button>
 
-          <button
-            onClick={() => {
-              setActiveTab("medicines");
-              setIsSimpleMode(false);
-            }}
-            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
-              activeTab === "medicines" && !isSimpleMode
-                ? "text-blue-600 bg-blue-50/80 font-bold"
-                : "hover:text-slate-700"
-            }`}
-          >
-            <Pill className="w-4 h-4" />
-            <span>Meds</span>
-          </button>
+              <button
+                onClick={() => {
+                  setActiveTab("medicines");
+                  setIsSimpleMode(false);
+                }}
+                className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
+                  activeTab === "medicines" && !isSimpleMode
+                    ? "text-blue-600 bg-blue-50/80 font-bold"
+                    : "hover:text-slate-700"
+                }`}
+              >
+                <Pill className="w-4 h-4" />
+                <span>Meds</span>
+              </button>
+            </>
+          )}
 
           <button
             onClick={() => setIsSidebarMobileOpen(true)}
-            className="flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer text-blue-600 hover:text-blue-800"
+            className="flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer text-slate-600 hover:text-slate-900"
           >
             <span className="text-base leading-none">☰</span>
             <span>Menu</span>
@@ -530,27 +663,19 @@ export function App() {
         facilities={facilities}
       />
 
-      {/* User Profile Modal */}
+      {/* User Profile & Health Info Modal */}
       <ProfileModal
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         userProfile={userProfile}
         onUpdateProfile={setUserProfile}
-        onResetAllData={handleResetAllData}
         language={language}
-        onLogout={() => {
-          setIsProfileOpen(false);
-          handleLogout();
-        }}
-      />
-
-      {/* Multi-Role & Auth Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
+        onLanguageChange={setLanguage}
+        onResetData={handleResetAllData}
+        isOffline={isOffline}
+        onToggleOffline={handleToggleOffline}
         currentAccount={currentAccount}
-        onLogin={handleLogin}
-        language={language}
+        onLogout={handleLogout}
       />
     </div>
   );

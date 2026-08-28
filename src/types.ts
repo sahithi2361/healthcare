@@ -1,6 +1,6 @@
 export type Language = "en" | "te" | "hi";
 
-export type UserRole = "user" | "doctor" | "hospital" | "asha";
+export type UserRole = "user" | "doctor" | "hospital";
 
 export interface AuthAccount {
   id: string;

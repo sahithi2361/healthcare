@@ -923,19 +923,6 @@ export const PRESET_ACCOUNTS: AuthAccount[] = [
     location: "Station Road, Mahabubnagar",
     avatar: "https://images.unsplash.com/photo-1586773860418-d37222d8fce3?w=150&auto=format&fit=crop&q=80",
   },
-  {
-    id: "asha_vanitha_01",
-    role: "asha",
-    name: "Vanitha (Village ASHA Worker)",
-    email: "vanitha.asha@nrhm.telangana.gov.in",
-    phone: "+91 94400 54321",
-    ashaId: "TS-ASHA-MBNR-442",
-    villageName: "Bhoothpur Village",
-    mandalName: "Bhoothpur Mandal",
-    assignedFamiliesCount: 142,
-    location: "Bhoothpur Village, Mahabubnagar",
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
-  },
 ];
 
 export const INITIAL_DOCTORS: Doctor[] = [

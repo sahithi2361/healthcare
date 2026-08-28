@@ -11,6 +11,7 @@ import {
   NotificationItem,
   MedicationLog,
   AuthAccount,
+  Doctor,
 } from "../types";
 import {
   INITIAL_USER_PROFILE,
@@ -38,6 +39,7 @@ const STORAGE_KEYS = {
   ACCESS_SCORE: "sehat_saathi_access_score_v1",
   COMMUNITY_DATA: "sehat_saathi_community_v1",
   NOTIFICATIONS: "sehat_saathi_notifications_v1",
+  DOCTORS: "sehat_saathi_doctors_v1",
   OFFLINE_SIMULATION: "sehat_saathi_offline_sim_v1",
   LAST_SYNC: "sehat_saathi_last_sync_v1",
   CURRENT_ACCOUNT: "sehat_saathi_account_v1",
@@ -197,6 +199,9 @@ export const StorageManager = {
       return INITIAL_FACILITIES;
     }
   },
+  saveFacilities: (facilities: HealthcareFacility[]) => {
+    localStorage.setItem(STORAGE_KEYS.FACILITIES, JSON.stringify(facilities));
+  },
 
   // Articles
   getArticles: (): HealthArticle[] => {
@@ -248,6 +253,19 @@ export const StorageManager = {
     } catch {
       return INITIAL_COMMUNITY_REGIONS;
     }
+  },
+
+  // Doctors
+  getDoctors: (): Doctor[] => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.DOCTORS);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  },
+  saveDoctors: (doctors: Doctor[]) => {
+    localStorage.setItem(STORAGE_KEYS.DOCTORS, JSON.stringify(doctors));
   },
 
   // Notifications

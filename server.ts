@@ -3,6 +3,42 @@ import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
+import { requireAuth, AuthRequest } from "./src/middleware/auth.ts";
+import {
+  getOrCreateDbUser,
+  updateUserProfile,
+  getUserMedications,
+  addMedication,
+  toggleMedicationTaken,
+  deleteMedication,
+  getUserAppointments,
+  addAppointment,
+  cancelAppointment,
+  getUserDocuments,
+  addHealthDocument,
+  deleteHealthDocument,
+  getUserCaregivers,
+  addCaregiver,
+  deleteCaregiver,
+  getTeleconsultQueue,
+  createTeleconsultRequest,
+  submitDoctorPrescription,
+  getAllHospitalFacilities,
+  updateFacilityBeds,
+  getUserHealthScore,
+  createHospitalFacility,
+  getHospitalByUserId,
+  getHospitalById,
+  updateHospitalFacility,
+  getHospitalDoctors,
+  getAllDoctors,
+  addDoctorToHospital,
+  deleteDoctorFromHospital,
+  getDoctorPatientsByDate,
+  createDoctorPatientAppointment,
+  updateAppointmentDetails,
+  getHealthArticles,
+} from "./src/db/repository.ts";
 
 dotenv.config();
 
@@ -427,6 +463,375 @@ app.post("/api/resource-recommendation", (req: Request, res: Response) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// DYNAMIC CLOUD SQL POSTGRESQL API ENDPOINTS
+// ==========================================
+
+// 1. User Profile & Auth
+app.get("/api/user/profile", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = req.dbUser;
+    const score = await getUserHealthScore(user!.id);
+    res.json({ profile: user, score });
+  } catch (error: any) {
+    console.error("Failed to fetch user profile:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch profile" });
+  }
+});
+
+app.put("/api/user/profile", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const updated = await updateUserProfile(req.dbUser!.id, req.body);
+    res.json(updated);
+  } catch (error: any) {
+    console.error("Failed to update user profile:", error);
+    res.status(500).json({ error: error.message || "Failed to update profile" });
+  }
+});
+
+// 2. Dynamic Medications (Linked with userId)
+app.get("/api/medications", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const list = await getUserMedications(req.dbUser!.id);
+    res.json(list);
+  } catch (error: any) {
+    console.error("Failed to fetch medications:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch medications" });
+  }
+});
+
+app.post("/api/medications", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const med = await addMedication(req.dbUser!.id, req.body);
+    res.json(med);
+  } catch (error: any) {
+    console.error("Failed to create medication:", error);
+    res.status(500).json({ error: error.message || "Failed to add medication" });
+  }
+});
+
+app.patch("/api/medications/:id/toggle", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const medId = parseInt(req.params.id, 10);
+    const updated = await toggleMedicationTaken(req.dbUser!.id, medId);
+    res.json(updated);
+  } catch (error: any) {
+    console.error("Failed to toggle medication:", error);
+    res.status(500).json({ error: error.message || "Failed to toggle medication" });
+  }
+});
+
+app.delete("/api/medications/:id", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const medId = parseInt(req.params.id, 10);
+    const result = await deleteMedication(req.dbUser!.id, medId);
+    res.json(result);
+  } catch (error: any) {
+    console.error("Failed to delete medication:", error);
+    res.status(500).json({ error: error.message || "Failed to delete medication" });
+  }
+});
+
+// 3. Dynamic Appointments (Linked with userId)
+app.get("/api/appointments", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const list = await getUserAppointments(req.dbUser!.id);
+    res.json(list);
+  } catch (error: any) {
+    console.error("Failed to fetch appointments:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch appointments" });
+  }
+});
+
+app.post("/api/appointments", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const appt = await addAppointment(req.dbUser!.id, req.body);
+    res.json(appt);
+  } catch (error: any) {
+    console.error("Failed to create appointment:", error);
+    res.status(500).json({ error: error.message || "Failed to book appointment" });
+  }
+});
+
+app.patch("/api/appointments/:id/cancel", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const apptId = parseInt(req.params.id, 10);
+    const updated = await cancelAppointment(req.dbUser!.id, apptId);
+    res.json(updated);
+  } catch (error: any) {
+    console.error("Failed to cancel appointment:", error);
+    res.status(500).json({ error: error.message || "Failed to cancel appointment" });
+  }
+});
+
+// 4. Dynamic Health Documents (Linked with userId)
+app.get("/api/documents", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const list = await getUserDocuments(req.dbUser!.id);
+    res.json(list);
+  } catch (error: any) {
+    console.error("Failed to fetch documents:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch documents" });
+  }
+});
+
+app.post("/api/documents", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const doc = await addHealthDocument(req.dbUser!.id, req.body);
+    res.json(doc);
+  } catch (error: any) {
+    console.error("Failed to create document:", error);
+    res.status(500).json({ error: error.message || "Failed to create document" });
+  }
+});
+
+app.delete("/api/documents/:id", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const docId = parseInt(req.params.id, 10);
+    const result = await deleteHealthDocument(req.dbUser!.id, docId);
+    res.json(result);
+  } catch (error: any) {
+    console.error("Failed to delete document:", error);
+    res.status(500).json({ error: error.message || "Failed to delete document" });
+  }
+});
+
+// 5. Dynamic Caregivers & Care Circle (Linked with userId)
+app.get("/api/caregivers", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const list = await getUserCaregivers(req.dbUser!.id);
+    res.json(list);
+  } catch (error: any) {
+    console.error("Failed to fetch caregivers:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch caregivers" });
+  }
+});
+
+app.post("/api/caregivers", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const cg = await addCaregiver(req.dbUser!.id, req.body);
+    res.json(cg);
+  } catch (error: any) {
+    console.error("Failed to create caregiver:", error);
+    res.status(500).json({ error: error.message || "Failed to create caregiver" });
+  }
+});
+
+app.delete("/api/caregivers/:id", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const cgId = parseInt(req.params.id, 10);
+    const result = await deleteCaregiver(req.dbUser!.id, cgId);
+    res.json(result);
+  } catch (error: any) {
+    console.error("Failed to delete caregiver:", error);
+    res.status(500).json({ error: error.message || "Failed to delete caregiver" });
+  }
+});
+
+// 6. Doctor Teleconsult Queue & Prescription
+app.get("/api/doctor/teleconsults", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const list = await getTeleconsultQueue();
+    res.json(list);
+  } catch (error: any) {
+    console.error("Failed to fetch teleconsult queue:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch teleconsults" });
+  }
+});
+
+app.post("/api/teleconsults/book", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const session = await createTeleconsultRequest(req.dbUser!.id, req.body);
+    res.json(session);
+  } catch (error: any) {
+    console.error("Failed to create teleconsult request:", error);
+    res.status(500).json({ error: error.message || "Failed to book teleconsult" });
+  }
+});
+
+app.post("/api/doctor/prescribe", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { sessionId, rxDiagnosis, rxMedicines, rxAdvice } = req.body;
+    const session = await submitDoctorPrescription(sessionId, req.dbUser!.id, {
+      rxDiagnosis,
+      rxMedicines,
+      rxAdvice,
+    });
+    res.json(session);
+  } catch (error: any) {
+    console.error("Failed to submit prescription:", error);
+    res.status(500).json({ error: error.message || "Failed to prescribe" });
+  }
+});
+
+// 7. Hospital Facilities, Live Beds & Capacity
+app.get("/api/facilities", async (req: Request, res: Response) => {
+  try {
+    const facilities = await getAllHospitalFacilities();
+    res.json(facilities);
+  } catch (error: any) {
+    console.error("Failed to fetch facilities from PostgreSQL:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch facilities" });
+  }
+});
+
+app.patch("/api/facilities/:id/capacity", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const facilityId = parseInt(req.params.id, 10);
+    const updated = await updateFacilityBeds(facilityId, req.body);
+    res.json(updated);
+  } catch (error: any) {
+    console.error("Failed to update facility capacity in PostgreSQL:", error);
+    res.status(500).json({ error: error.message || "Failed to update capacity" });
+  }
+});
+
+// 8. Health Access Score
+app.get("/api/health-score", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const score = await getUserHealthScore(req.dbUser!.id);
+    res.json(score);
+  } catch (error: any) {
+    console.error("Failed to fetch health score:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch health score" });
+  }
+});
+
+// 9. Doctor OPD Patients by Date & Walk-in Patient Endpoints
+app.get("/api/doctor/patients-by-date", async (req: Request, res: Response) => {
+  try {
+    const { date, doctorId, hospitalId } = req.query;
+    const docId = doctorId ? parseInt(String(doctorId), 10) : undefined;
+    const hospId = hospitalId ? parseInt(String(hospitalId), 10) : undefined;
+    const patients = await getDoctorPatientsByDate(date ? String(date) : undefined, docId, hospId);
+    res.json(patients);
+  } catch (error: any) {
+    console.error("Failed to fetch doctor patients by date:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch patients for date" });
+  }
+});
+
+app.post("/api/doctor/walkin-patient", async (req: Request, res: Response) => {
+  try {
+    const patient = await createDoctorPatientAppointment(req.body);
+    res.json(patient);
+  } catch (error: any) {
+    console.error("Failed to create walkin patient:", error);
+    res.status(500).json({ error: error.message || "Failed to create patient" });
+  }
+});
+
+app.patch("/api/appointments/:id/details", async (req: Request, res: Response) => {
+  try {
+    const appointmentId = parseInt(req.params.id, 10);
+    const updated = await updateAppointmentDetails(appointmentId, req.body);
+    res.json(updated);
+  } catch (error: any) {
+    console.error("Failed to update appointment details:", error);
+    res.status(500).json({ error: error.message || "Failed to update appointment" });
+  }
+});
+
+// 10. Hospital Management, Hospital Location, Creation & Hospital-Only Doctors
+app.get("/api/hospital/my-facility", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const facility = await getHospitalByUserId(req.dbUser!.id);
+    res.json(facility);
+  } catch (error: any) {
+    console.error("Failed to fetch hospital by user:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch hospital" });
+  }
+});
+
+app.get("/api/hospital/facility/:id", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const facility = await getHospitalById(id);
+    res.json(facility);
+  } catch (error: any) {
+    console.error("Failed to fetch hospital facility:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch hospital" });
+  }
+});
+
+app.post("/api/hospital/facility", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const created = await createHospitalFacility(req.dbUser!.id, req.body);
+    res.json(created);
+  } catch (error: any) {
+    console.error("Failed to create hospital facility:", error);
+    res.status(500).json({ error: error.message || "Failed to create hospital facility" });
+  }
+});
+
+app.put("/api/hospital/facility/:id", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const updated = await updateHospitalFacility(id, req.body);
+    res.json(updated);
+  } catch (error: any) {
+    console.error("Failed to update hospital facility:", error);
+    res.status(500).json({ error: error.message || "Failed to update hospital facility" });
+  }
+});
+
+// Doctors strictly belonging to the particular hospital
+app.get("/api/hospital/:id/doctors", async (req: Request, res: Response) => {
+  try {
+    const hospitalId = parseInt(req.params.id, 10);
+    const docs = await getHospitalDoctors(hospitalId);
+    res.json(docs);
+  } catch (error: any) {
+    console.error("Failed to fetch doctors for hospital:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch hospital doctors" });
+  }
+});
+
+app.post("/api/hospital/:id/doctors", async (req: Request, res: Response) => {
+  try {
+    const hospitalId = parseInt(req.params.id, 10);
+    const doc = await addDoctorToHospital(hospitalId, req.body);
+    res.json(doc);
+  } catch (error: any) {
+    console.error("Failed to add doctor to hospital:", error);
+    res.status(500).json({ error: error.message || "Failed to add doctor to hospital" });
+  }
+});
+
+app.delete("/api/hospital/:id/doctors/:doctorId", async (req: Request, res: Response) => {
+  try {
+    const hospitalId = parseInt(req.params.id, 10);
+    const doctorId = parseInt(req.params.doctorId, 10);
+    const result = await deleteDoctorFromHospital(hospitalId, doctorId);
+    res.json(result);
+  } catch (error: any) {
+    console.error("Failed to delete doctor from hospital:", error);
+    res.status(500).json({ error: error.message || "Failed to delete doctor from hospital" });
+  }
+});
+
+// All doctors directory (for patient appointment booking)
+app.get("/api/doctors", async (req: Request, res: Response) => {
+  try {
+    const docs = await getAllDoctors();
+    res.json(docs);
+  } catch (error: any) {
+    console.error("Failed to fetch all doctors:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch doctors" });
+  }
+});
+
+// 11. Health Articles (Educational Content from DB)
+app.get("/api/health-articles", async (req: Request, res: Response) => {
+  try {
+    const articles = await getHealthArticles();
+    res.json(articles);
+  } catch (error: any) {
+    console.error("Failed to fetch health articles:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch health articles" });
   }
 });
 

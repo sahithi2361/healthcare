@@ -17,6 +17,8 @@ import {
 import { Language, Medication, UserProfile, MedicationLog } from "../types";
 import { speakText } from "../utils/speech";
 import { StorageManager } from "../utils/storage";
+import { api } from "../lib/api";
+import { mapDbMedication } from "../utils/adapters";
 
 interface MedicineRemindersProps {
   medications: Medication[];
@@ -43,12 +45,18 @@ export const MedicineReminders: React.FC<MedicineRemindersProps> = ({
   const [timing, setTiming] = useState("Morning (8:00 AM)");
   const [instructions, setInstructions] = useState("After breakfast with water");
 
-  const handleMarkTaken = (med: Medication) => {
+  const handleMarkTaken = async (med: Medication) => {
     const updated = medications.map((m) =>
       m.id === med.id ? { ...m, isTakenToday: true, isSkippedToday: false } : m
     );
     onUpdateMedications(updated);
     StorageManager.saveMedications(updated);
+
+    // Call PostgreSQL backend
+    const numId = parseInt(med.id, 10);
+    if (!isNaN(numId)) {
+      api.toggleMedication(numId).catch((e) => console.warn("Backend toggle err:", e));
+    }
 
     StorageManager.recordMedLog({
       id: "log_" + Date.now(),
@@ -92,25 +100,44 @@ export const MedicineReminders: React.FC<MedicineRemindersProps> = ({
     }, 2000);
   };
 
-  const handleAddMedication = (e: React.FormEvent) => {
+  const handleAddMedication = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const newMed: Medication = {
-      id: "med_" + Date.now(),
-      name,
-      dosage,
-      frequency,
-      timing,
-      instructions,
-      isTakenToday: false,
-      isSkippedToday: false,
-      stockRemaining: 30,
-      prescribedFor: "General Maintenance",
-    };
+    try {
+      // Save to PostgreSQL
+      const saved = await api.addMedication({
+        name,
+        dosage,
+        frequency,
+        timings: timing,
+        instructions,
+        remainingDoses: 30,
+        condition: "General Health",
+      }).catch(() => null);
 
-    const updated = StorageManager.addMedication(newMed);
-    onUpdateMedications(updated);
+      const newMed: Medication = saved
+        ? mapDbMedication(saved)
+        : {
+            id: "med_" + Date.now(),
+            name,
+            dosage,
+            frequency,
+            timing,
+            instructions,
+            isTakenToday: false,
+            isSkippedToday: false,
+            stockRemaining: 30,
+            prescribedFor: "General Maintenance",
+          };
+
+      const updated = [newMed, ...medications];
+      onUpdateMedications(updated);
+      StorageManager.saveMedications(updated);
+    } catch (err) {
+      console.warn("Save med error:", err);
+    }
+
     setShowAddModal(false);
     resetForm();
   };
